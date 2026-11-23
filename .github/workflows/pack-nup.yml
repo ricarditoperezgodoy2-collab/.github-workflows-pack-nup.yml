@@ -14,13 +14,19 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y p7zip-full unrar
           git clone --depth 1 https://github.com/seedds/nxnative
-          NUP_DIR=$(find nxnative -name "pyproject.toml" -path "*nup*" -exec dirname {} \; | head -n 1)
-          pip install "$NUP_DIR" gdown
+          NUP_CARGO=$(find nxnative -name "Cargo.toml" -path "*nup*" | head -n 1)
+          if [ -n "$NUP_CARGO" ]; then
+            cargo install --path "$(dirname "$NUP_CARGO")"
+          else
+            NUP_PY=$(find nxnative -name "pyproject.toml" -path "*nup*" | head -n 1)
+            pip install "$(dirname "$NUP_PY")"
+          fi
+          pip install gdown
 
       - name: Descargar y extraer desde Google Drive
         run: |
           mkdir -p descarga extraido
-          gdown --fuzzy "https://drive.google.com/file/d/1FEGBGKPD8Q00taC83GkOL5ZHQ3-ejIxd/view?usp=drivesdk" -O descarga/archivo
+          gdown --fuzzy "https://google.com" -O descarga/archivo
           7z x descarga/archivo -oextraido -y
 
       - name: Generar archivo .nup
