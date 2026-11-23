@@ -1,1 +1,44 @@
+name: Empaquetar a NUP
 
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  pack-nup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instalar herramientas y utilidad NUP
+        run: |
+          sudo apt-get update && sudo apt-get install -y p7zip-full unrar
+          git clone --depth 1 https://github.com
+          NUP_DIR=$(find nxnative -name "pyproject.toml" -path "*nup*" -exec dirname {} \; | head -n 1)
+          pip install "$NUP_DIR" gdown
+
+      - name: Descargar y extraer desde Google Drive
+        run: |
+          mkdir -p descarga extraido
+          gdown --fuzzy "https://drive.google.com/file/d/1FEGBGKPD8Q00taC83GkOL5ZHQ3-ejIxd/view?usp=drivesdk" -O descarga/archivo
+          7z x descarga/archivo -oextraido -y
+
+      - name: Generar archivo .nup
+        run: |
+          GAME_DIR=$(find extraido -maxdepth 4 -type d \( -name "exefs" -o -name "base" \) -exec dirname {} \; | head -n 1)
+          echo "Carpeta detectada: $GAME_DIR"
+          nup pack "$GAME_DIR" juego.nup
+          ls -lh juego.nup
+
+      - name: Subir archivo .nup a Releases para descargar
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="nup-$(date +%Y%m%d-%H%M)"
+          SIZE=$(stat -c%s juego.nup)
+          if [ "$SIZE" -gt 2000000000 ]; then
+            split -b 1900M juego.nup juego.nup.part
+            gh release create "$TAG" juego.nup.part* --title "NUP generado ($TAG)" --notes "Archivo dividido en partes de 1.9 GB"
+          else
+            gh release create "$TAG" juego.nup --title "NUP generado ($TAG)" --notes "Listo para descargar"
+          fi
